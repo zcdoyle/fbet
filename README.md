@@ -29,9 +29,7 @@ better to make a launch file like bellow:
   
         <include file="$(find openni2_launch)/launch/openni2.launch"/>
   
-        <include file="$(find slam)/launch/slam.launch" > 
-  
-        </include>
+        <include file="$(find slam)/launch/slam.launch" /> 
 
         <node name="fbet_node" pkg="fbet" type="fbet_node">
   
