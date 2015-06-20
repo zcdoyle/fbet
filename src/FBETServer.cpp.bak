@@ -49,12 +49,11 @@ namespace fbet_server
           private_nh.param("sensor_model/min", m_thresMin, m_thresMin);
           private_nh.param("sensor_model/max", m_thresMax, m_thresMax);
           private_nh.param("compress_map", m_compressMap, m_compressMap);
-		  
-		  //logfile
+
           logfile.open("log.txt");
           logfile<<"This is a log file for 3D-FBET"<<endl;
 
-          // initialize
+          // initialize octomap object & params
           m_octree = new OcTree(m_res);
           m_octree->setProbHit(m_probHit);
           m_octree->setProbMiss(m_probMiss);
@@ -264,7 +263,7 @@ namespace fbet_server
   	ros::WallTime startTime = ros::WallTime::now();
   	logfile<<"insertCallback"<<endl;
 
-  	PCLPointCloud pc; // input cloud
+  	PCLPointCloud pc; // input cloud for filtering and ground-detection
   	pcl::fromROSMsg(*cloud, pc);
 
   	tf::StampedTransform sensorToWorldTf;
@@ -280,12 +279,15 @@ namespace fbet_server
   	pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
 
+  	// set up filter for height range, also removes NANs:
   	pcl::PassThrough<pcl::PointXYZ> pass;
   	pass.setFilterFieldName("z");
   	pass.setFilterLimits(m_pointcloudMinZ, m_pointcloudMaxZ);
 
+    	// directly transform to map frame:
     	pcl::transformPointCloud(pc, pc, sensorToWorld);
 
+    	// just filter height range:
     	pass.setInputCloud(pc.makeShared());
     	pass.filter(pc);
 
@@ -389,7 +391,7 @@ namespace fbet_server
       void FBETServer::publishfrontier(const ros::Time& rostime, KeySet& frontierCells)
       {
   	logfile<<"publishfrontier"<<endl;
-  	// init markers for frontier space:
+  	// init markers for free space:
   	visualization_msgs::MarkerArray frontierNodesVis;
   	// each array stores all cubes of a different size, one for each depth level:
   	frontierNodesVis.markers.resize(m_treeDepth+1);
