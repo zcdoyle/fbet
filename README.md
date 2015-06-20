@@ -23,25 +23,25 @@ that is to say, you need a slam
 
 better to make a launch file like bellow:
 
-<launch>
+   <launch>
 
-  <master auto="start"/>
+    <master auto="start"/>
   
-  <include file="$(find openni2_launch)/launch/openni2.launch"/>
+      <include file="$(find openni2_launch)/launch/openni2.launch"/>
   
-  <include file="$(find slam)/launch/slam.launch" > 
+      <include file="$(find slam)/launch/slam.launch" > 
   
-  </include>
+      </include>
 
-  <node name="fbet_node" pkg="fbet" type="fbet_node">
+      <node name="fbet_node" pkg="fbet" type="fbet_node">
   
-  <remap from="/cloud_in"       to="/voxel_cloud"/>
+        <remap from="/cloud_in"       to="/voxel_cloud"/>
     
-  <param name="resolution" type="double" value="0.25"/>
+        <param name="resolution" type="double" value="0.25"/>
     
-  </node>
+      </node>
 
-</launch>
+  </launch>
 
 p.s: replace the "slam" part by your own
 
