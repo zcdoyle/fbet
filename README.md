@@ -35,9 +35,9 @@ better to make a launch file like bellow:
 
   <node name="fbet_node" pkg="fbet" type="fbet_node">
   
-    <remap from="/cloud_in"       to="/voxel_cloud"/>
+  <remap from="/cloud_in"       to="/voxel_cloud"/>
     
-    <param name="resolution" type="double" value="0.25"/>
+  <param name="resolution" type="double" value="0.25"/>
     
   </node>
 
@@ -49,11 +49,15 @@ p.s: replace the "slam" part by your own
 
 3D-fbet publish topics:
 
-type: Marker; name: frontier_goal_marker
+type: Marker;
+
+name: frontier_goal_marker
 
 type: MarkerArray;
 
-name: occupied_cells_vis_array
+name: 
+
+      occupied_cells_vis_array
 
       free_cells_vis_array
       
