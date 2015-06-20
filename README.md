@@ -22,6 +22,7 @@ that is to say, you need a slam
 3.launch:
 
 better to make a launch file like bellow:
+
 <launch>
 
   <master auto="start"/>
