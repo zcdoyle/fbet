@@ -267,7 +267,6 @@ namespace fbet_server
       		
       		while(!temp_queue.empty())
       		{
-      			//logfile<<"11111"<<endl;
       			temp_cell = temp_queue.front();
       			temp_queue.pop();
       			// point3d temp_point;
@@ -285,18 +284,16 @@ namespace fbet_server
 			      		continue;
 			      	temp_queue.push(nei_key);
 			      	frontierCells.erase(nei_key);
-			      	//todo delete fron frontier_vector
-			      	// if(!frontier_vector.empty())
-			      	// {
-				      // 	for(std::vector<OcTreeKey>::iterator fiter = frontier_vector.begin();fiter != frontier_vector.end(); fiter++)
-				      // 	{
-				      // 		std::vector<OcTreeKey>::iterator it=fiter;
-				      // 		if(*it == nei_key)
-				      // 		{
-				      // 			it= frontier_vector.erase(it);
-				      // 		}
-				      // 	}
-			      	// }
+			      	//delete fron frontier_vector
+			      	int fiternum=0,fnum=0;
+			      	for(std::vector<OcTreeKey>::iterator fiter = frontier_vector.begin();fiter != frontier_vector.end(); fiter++)
+			      	{
+			      		fiternum++;
+			      		if(*fiter == nei_key)
+			      			fnum = fiternum;
+			      	}
+			      	if (fnum != 0)
+			      		frontier_vector.erase(frontier_vector.begin()+fnum);
 			}
 			cluster.push_back(temp_cell);
       		}
@@ -318,7 +315,7 @@ namespace fbet_server
       void FBETServer::best_frontier(point3d cur_p,KeySet& Cells)
       {
     	logfile<<"best_frontier"<<endl;
-    	float w1 =1,w2 =1;
+    	float w1 =1,w2 =1; //todo: adjust w1 and w2
     	float min_a=INF;
     	float wei_l, wei_i, wei_a;
     	int numall = 0,numunknown = 0;
@@ -329,7 +326,6 @@ namespace fbet_server
 	      point3d fpoint;
 	      fpoint = m_octree->keyToCoord(*iter);
 	      wei_l=(fpoint.x()-cur_p.x())*(fpoint.x()-cur_p.x())+(fpoint.y()-cur_p.y())*(fpoint.y()-cur_p.y())+(fpoint.z()-cur_p.z())*(fpoint.z()-cur_p.z());
-	      //todo information wei_i
 	      //check six point of the sphere
 	      point3d sphere_point[6] ;
 	      for(int j=0; j<6; j++)
