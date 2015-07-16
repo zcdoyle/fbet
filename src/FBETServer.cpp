@@ -1,7 +1,5 @@
-/*
-author: zcdoyle@hotmail.com,Beihang university
-*/
 #include <fbet/FBETServer.h>
+#include <queue>
 
 #define INF 0x7fffffff
 using namespace std;
@@ -49,12 +47,11 @@ namespace fbet_server
           private_nh.param("sensor_model/min", m_thresMin, m_thresMin);
           private_nh.param("sensor_model/max", m_thresMax, m_thresMax);
           private_nh.param("compress_map", m_compressMap, m_compressMap);
-		  
-		  //logfile
+
           logfile.open("log.txt");
           logfile<<"This is a log file for 3D-FBET"<<endl;
 
-          // initialize
+          // initialize octomap object & params
           m_octree = new OcTree(m_res);
           m_octree->setProbHit(m_probHit);
           m_octree->setProbMiss(m_probMiss);
@@ -236,26 +233,136 @@ namespace fbet_server
           double total_time = (ros::WallTime::now() - startTime).toSec();
           logfile<<"find_frontier used total "<<total_time<<" sec"<<endl;
       }
+      void FBETServer::find_center(std::vector<OcTreeKey>& cluster, OcTreeKey& centerCell)
+      {
+      	logfile<<"find_center"<<endl;
+      	//todo find the central cell
+      	centerCell = cluster[0];
+      }
+      void FBETServer::cluster_frontier(KeySet& frontierCells,KeySet& candidateCells)
+      {
+      	logfile<<"cluster_gather"<<endl;
 
-      void FBETServer::best_frontier(point3d cur_p,KeySet& frontierCells)
+      	vector <OcTreeKey> frontier_vector;
+      	//preprocess put the frontier cells in frontiercells into a queue
+      	for(KeySet::iterator iter = frontierCells.begin(), end=frontierCells.end(); iter!= end; ++iter)
+          	{
+             	frontier_vector.push_back(*iter);
+          	}
+
+      	queue<OcTreeKey> temp_queue;
+      	std::vector<std::vector<OcTreeKey> > cluster_gather;
+      	while(!frontier_vector.empty())
+      	{
+      		OcTreeKey f_cell;
+      		OcTreeKey temp_cell;
+      		f_cell = frontier_vector.front();
+      		frontier_vector.erase(frontier_vector.begin());
+      		temp_queue.push(f_cell);
+      		point3d fcell_point;
+      		fcell_point = m_octree->keyToCoord(f_cell);
+      		logfile<<"fcell_x"<<fcell_point.x()<<" "<<"fcell_y"<<fcell_point.y()<<" "<<"fcell_z"<<fcell_point.z()<<endl;
+      		std::vector<octomap::point3d> neighbor;
+      		std::vector<OcTreeKey> cluster;
+      		
+      		while(!temp_queue.empty())
+      		{
+      			//logfile<<"11111"<<endl;
+      			temp_cell = temp_queue.front();
+      			temp_queue.pop();
+      			// point3d temp_point;
+      			// temp_point = m_octree->keyToCoord(temp_cell);
+      			// logfile<<"temp_x"<<temp_point.x()<<" "<<"temp_y"<<temp_point.y()<<" "<<"temp_z"<<temp_point.z()<<endl;
+      			genNeighborCoord(temp_cell, neighbor) ;
+      			for (std::vector<point3d>::iterator iter = neighbor.begin();iter != neighbor.end(); iter++)
+			{
+			      	point3d neipoint=*iter;
+			      	//logfile<<"nx"<<neipoint.x()<<" "<<"ny"<<neipoint.y()<<" "<<"nz"<<neipoint.z()<<endl;
+			      	OcTreeKey nei_key;
+			      	m_octree->coordToKeyChecked(neipoint, nei_key);
+			      	KeySet::iterator got = frontierCells.find(nei_key);
+			      	if (got == frontierCells.end())
+			      		continue;
+			      	temp_queue.push(nei_key);
+			      	frontierCells.erase(nei_key);
+			      	//todo delete fron frontier_vector
+			      	// if(!frontier_vector.empty())
+			      	// {
+				      // 	for(std::vector<OcTreeKey>::iterator fiter = frontier_vector.begin();fiter != frontier_vector.end(); fiter++)
+				      // 	{
+				      // 		std::vector<OcTreeKey>::iterator it=fiter;
+				      // 		if(*it == nei_key)
+				      // 		{
+				      // 			it= frontier_vector.erase(it);
+				      // 		}
+				      // 	}
+			      	// }
+			}
+			cluster.push_back(temp_cell);
+      		}
+      		cluster_gather.push_back(cluster);
+      	}
+      	int cluster_size=0;
+      	for(std::vector<std::vector<OcTreeKey> >::iterator iter = cluster_gather.begin(); iter!= cluster_gather.end(); iter++)
+      	{
+      		cluster_size++;
+      		OcTreeKey center_cell;
+      		find_center(*iter,center_cell);
+      		point3d cpoint;
+	      	cpoint = m_octree->keyToCoord(center_cell);
+      		logfile<<"cx"<<cpoint.x()<<" "<<"cy"<<cpoint.y()<<" "<<"cz"<<cpoint.z()<<endl;
+      		candidateCells.insert(center_cell);
+      	}
+      	logfile<<"cluster:"<<cluster_size<<endl;
+      }
+      void FBETServer::best_frontier(point3d cur_p,KeySet& Cells)
       {
     	logfile<<"best_frontier"<<endl;
-    	float min_l=INF;
-    	float wei_l;
+    	float w1 =1,w2 =1;
+    	float min_a=INF;
+    	float wei_l, wei_i, wei_a;
+    	int numall = 0,numunknown = 0;
     	int i;
     	point3d best_goal;
-    	for(KeySet::iterator iter = frontierCells.begin(), end=frontierCells.end(); iter!= end; ++iter)
+    	for(KeySet::iterator iter = Cells.begin(), end=Cells.end(); iter!= end; ++iter)
     	{
 	      point3d fpoint;
 	      fpoint = m_octree->keyToCoord(*iter);
 	      wei_l=(fpoint.x()-cur_p.x())*(fpoint.x()-cur_p.x())+(fpoint.y()-cur_p.y())*(fpoint.y()-cur_p.y())+(fpoint.z()-cur_p.z())*(fpoint.z()-cur_p.z());
-	      if (wei_l<min_l)
+	      //todo information wei_i
+	      //check six point of the sphere
+	      point3d sphere_point[6] ;
+	      for(int j=0; j<6; j++)
+	      	sphere_point[j] = fpoint;
+	      sphere_point[0].x() += m_maxRange;
+	      sphere_point[1].x() -= m_maxRange;
+	      sphere_point[2].y() += m_maxRange;
+	      sphere_point[3].y() -= m_maxRange;
+	      sphere_point[4].z() += m_maxRange;
+	      sphere_point[5].z() -= m_maxRange;
+
+	      numall = 0, numunknown = 0;
+	      for(int j=0; j<6; j++)
 	      {
-		min_l=wei_l;
+	      	m_octree->computeRayKeys(fpoint, sphere_point[j], m_keyRaysphere);
+	      	for(KeyRay::iterator it = m_keyRaysphere.begin(); it != m_keyRaysphere.end(); it++)
+	      	{
+	      		numall++;
+			OcTreeNode* node = m_octree->search(*it);
+			if(node == NULL)
+				numunknown++;
+	      	}
+	      }
+	      wei_i = numunknown/(numall*1.0);
+	      wei_a = w1*wei_i +w2*wei_l;
+	      if (wei_a<min_a)
+	      {
+		min_a=wei_a;
 		best_goal=fpoint;
 	      }
 	}
 	best_frontiergoal = best_goal;
+	logfile<<"numunknown: "<<numunknown<<" "<<"numall: "<<numall<<endl;
 	logfile<<"bx"<<best_frontiergoal.x()<<" "<<"by"<<best_frontiergoal.y()<<" "<<"bz"<<best_frontiergoal.z()<<endl;
       }
 
@@ -264,7 +371,7 @@ namespace fbet_server
   	ros::WallTime startTime = ros::WallTime::now();
   	logfile<<"insertCallback"<<endl;
 
-  	PCLPointCloud pc; // input cloud
+  	PCLPointCloud pc; // input cloud for filtering and ground-detection
   	pcl::fromROSMsg(*cloud, pc);
 
   	tf::StampedTransform sensorToWorldTf;
@@ -280,12 +387,15 @@ namespace fbet_server
   	pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
 
+  	// set up filter for height range, also removes NANs:
   	pcl::PassThrough<pcl::PointXYZ> pass;
   	pass.setFilterFieldName("z");
   	pass.setFilterLimits(m_pointcloudMinZ, m_pointcloudMaxZ);
 
+    	// directly transform to map frame:
     	pcl::transformPointCloud(pc, pc, sensorToWorld);
 
+    	// just filter height range:
     	pass.setInputCloud(pc.makeShared());
     	pass.filter(pc);
 
@@ -294,10 +404,13 @@ namespace fbet_server
   	publishAll(cloud->header.stamp);
   	publishfrontier(cloud->header.stamp,frontier_cells);
   	publishfrontiergoal(cloud->header.stamp);
+      	ros::WallTime currentTime = ros::WallTime::now();
+      	logfile<<"fbet used total :"<<(currentTime-startTime).toSec()<<" sec"<<endl;
       }
 
       void FBETServer::insertScan(const tf::Point& sensorOriginTf, const PCLPointCloud& cloud)
       {
+        ros::WallTime startTime_insert = ros::WallTime::now();
    	logfile<<"insertScan"<<endl;
   	point3d sensorOrigin = pointTfToOctomap(sensorOriginTf);
 
@@ -314,7 +427,6 @@ namespace fbet_server
     		// maxrange check
     		if ((m_maxRange < 0.0) || ((point - sensorOrigin).norm() <= m_maxRange) ) 
     		{
-
       			// free cells
       			if (m_octree->computeRayKeys(sensorOrigin, point, m_keyRay))
       			{
@@ -371,6 +483,9 @@ namespace fbet_server
   	minPt = m_octree->keyToCoord(m_updateBBXMin);
   	maxPt = m_octree->keyToCoord(m_updateBBXMax);
   
+       	double total_time_insert = (ros::WallTime::now() - startTime_insert).toSec();
+      	logfile<<"insertscan used total "<<total_time_insert<<" sec"<<endl;
+       
   	if (m_compressMap)
     	m_octree->prune();
 
@@ -381,15 +496,22 @@ namespace fbet_server
   	trackChanges(changed_cells);
 
   	//for every cell in changed_cells check isFrontier
-  
+      
   	find_frontier(changed_cells,frontier_cells);
-  	best_frontier(sensorOrigin,frontier_cells);
+  	KeySet temp_frontiercells = frontier_cells;
+      	cluster_frontier(temp_frontiercells,candidate_cells);
+
+      	ros::WallTime startTime_evaluation = ros::WallTime::now();
+  	//best_frontier(sensorOrigin,frontier_cells);
+      	best_frontier(sensorOrigin,candidate_cells);
+      	double total_time_evaluation = (ros::WallTime::now() - startTime_evaluation).toSec();
+      	logfile<<"evaluation used total "<<total_time_evaluation<<" sec"<<endl;
       }
 
       void FBETServer::publishfrontier(const ros::Time& rostime, KeySet& frontierCells)
       {
   	logfile<<"publishfrontier"<<endl;
-  	// init markers for frontier space:
+  	// init markers for free space:
   	visualization_msgs::MarkerArray frontierNodesVis;
   	// each array stores all cubes of a different size, one for each depth level:
   	frontierNodesVis.markers.resize(m_treeDepth+1);

@@ -1,6 +1,3 @@
-/*
-author: zcdoyle@hotmail.com,Beihang university
-*/
 #include <ros/ros.h>
 #include <fbet/FBETServer.h>
 

@@ -1,6 +1,3 @@
-/*
-author: zcdoyle@hotmail.com,Beihang university
-*/
 #include <ros/ros.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/OccupancyGrid.h>
@@ -77,9 +74,10 @@ namespace fbet_server
   	void genNeighborCoord(octomap::OcTreeKey start_key, std::vector<octomap::point3d>& occupiedNeighbor);
   	void find_frontier(pcl::PointCloud<pcl::PointXYZI>& changedCells , KeySet& frontierCells);
   	void publishfrontier(const ros::Time& rostime, KeySet& frontierCells);
-  	void best_frontier(point3d sensorOrigin,KeySet& frontier_cells);
+  	void best_frontier(point3d sensorOrigin,KeySet& Cells);
   	void publishfrontiergoal(const ros::Time& rostime);
-
+      void cluster_frontier(KeySet& frontierCells,KeySet& candidateCells);
+      void find_center(std::vector<OcTreeKey>& cluster, OcTreeKey& centerCell);
   	ros::NodeHandle m_nh;
   	ros::Publisher  m_markerPub, m_fmarkerPub,m_markerPubFro, m_goalposePub;
   	message_filters::Subscriber<sensor_msgs::PointCloud2>* m_pointCloudSub;
@@ -87,13 +85,14 @@ namespace fbet_server
   	tf::TransformListener m_tfListener;
 
   	octomap::OcTree* m_octree;
-  	octomap::KeyRay m_keyRay;  
+  	octomap::KeyRay m_keyRay;  // temp storage for ray casting
+      octomap::KeyRay m_keyRaysphere;
   	octomap::OcTreeKey m_updateBBXMin;
   	octomap::OcTreeKey m_updateBBXMax;
 
   	double m_maxRange;
-  	std::string m_worldFrameId; 
-  	std::string m_baseFrameId; 
+  	std::string m_worldFrameId; // the map frame
+  	std::string m_baseFrameId; // base of the robot for ground plane filtering
   	std_msgs::ColorRGBA m_color;
   	std_msgs::ColorRGBA m_colorFree;
   	std_msgs::ColorRGBA m_colorFrontier;
@@ -123,6 +122,7 @@ namespace fbet_server
 	ros::Subscriber subFreeChanges;
 
 	KeySet frontier_cells;
+       KeySet candidate_cells;
 	octomap::OcTreeLUT lut;
 	ofstream logfile;
 	point3d best_frontiergoal;
